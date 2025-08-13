@@ -1,10 +1,10 @@
-// Generic Forum Scraper Engine with Dashboard Progress and Graceful Shutdown
+//Generic Forum Scraper Engine with Dashboard Progress and Graceful Shutdown
 
 const fs = require('fs').promises;
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { Pool } = require('pg');
-const cliProgress = require('cli-progress'); // The progress bar library
+const cliProgress = require('cli-progress'); //The progress bar library
 
 // --- Configuration ---
 const CONFIG_FILE = 'targets.json';
@@ -14,7 +14,7 @@ const CONCURRENCY_LIMIT = 5;
 let isShuttingDown = false;
 let totalRelevantThreads = 0; // Running total of relevant threads found
 
-// --- Database Configuration ---
+//--- Database Configuration ---
 const pgPool = new Pool({
     user: process.env.DB_USER || 'automotive_scraper_app',
     host: process.env.DB_HOST || 'localhost',
@@ -23,12 +23,12 @@ const pgPool = new Pool({
     port: process.env.DB_PORT || 5432,
 });
 
-// --- Main Execution Logic ---
+//--- Main Execution Logic ---
 async function main() {
     console.log("--> Starting Generic Scraper Engine...");
     console.log("    (Press Ctrl+C at any time to shut down gracefully)");
 
-    // Graceful Shutdown Handler
+    //Graceful Shutdown Handler
     process.on('SIGINT', () => {
         if (isShuttingDown) {
             console.log("\nForcing immediate exit.");
@@ -57,7 +57,7 @@ async function main() {
     }
 }
 
-// Processes a single target from the config file, handling pagination.
+//Processes a single target from the config file, handling pagination.
 async function processTarget(target) {
     console.log(`\n--------------------------------------------------`);
     console.log(`Processing Target: ${target.sourceName}`);
@@ -65,7 +65,7 @@ async function processTarget(target) {
 
     let currentPageUrl = target.startUrl;
     let pageCount = 1;
-    totalRelevantThreads = 0; // Reset for each new target
+    totalRelevantThreads = 0; //Reset for each new target
 
     while (currentPageUrl && !isShuttingDown) {
         try {
@@ -86,7 +86,7 @@ async function processTarget(target) {
                 
                 // --- Dashboard Progress Bar Setup ---
                 const progressBar = new cliProgress.SingleBar({
-                    // The format defines our multi-part "dashboard"
+                    //The format defines multi-part "dashboard"
                     format: 'Page Progress [{bar}] {percentage}% | Total Relevant: {relevant} | Current: {title}',
                     etaBuffer: 2000,
                     hideCursor: true
@@ -97,7 +97,7 @@ async function processTarget(target) {
                     title: "Initializing..."
                 });
 
-                // Concurrently scrape and process threads in chunks
+                //Concurrently scrape and process threads in chunks
                 for (let i = 0; i < threadLinks.length; i += CONCURRENCY_LIMIT) {
                     if (isShuttingDown) break;
                     const chunk = threadLinks.slice(i, i + CONCURRENCY_LIMIT);
@@ -115,7 +115,7 @@ async function processTarget(target) {
                         }
                     }
                     
-                    // Update the progress bar with the latest running totals and title
+                    //Update the progress bar with the latest running totals and title
                     progressBar.increment(chunk.length, {
                         relevant: totalRelevantThreads,
                         title: lastTitleInChunk.substring(0, 50) // Truncate title to fit
@@ -126,7 +126,7 @@ async function processTarget(target) {
                 console.log(`\n[Page ${pageCount}] No threads found on this page.`);
             }
 
-            // Find the "Next Page" link
+            // ind the "Next Page" link
             const nextPageHref = $(target.nextPageSelector).attr('href');
             if (nextPageHref && !isShuttingDown) {
                 currentPageUrl = new URL(nextPageHref, target.startUrl).href;

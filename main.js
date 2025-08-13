@@ -1,24 +1,22 @@
-// The Multithreaded Scraper Manager (Dashboard Version)
+// multithreaded scraper
 
 const fs = require('fs').promises;
 const path = require('path');
 const { Worker } = require('worker_threads');
 
-// --- Script Configuration ---
-// These are the core settings for the scraper operation.
-const CONFIG_FILE = 'targets.json';
-const NUM_WORKERS = 4;
-const REFRESH_INTERVAL = 250; // The screen refresh rate for the dashboard, in milliseconds.
+// --- Config ---
+const TARGETS_FILE = 'targets.json';
+const WORKER_COUNT = 4;
+const UI_REFRESH = 250; // screen refresh speed
 
-// --- Application State ---
-// These variables hold the live data for the dashboard. They are updated by worker events.
-let workerStates = [];
-let totalTargets = 0;
-let completedTargets = 0;
-let totalRelevantFound = 0;
-let renderInterval;
+// --- Live Stats ---
+let workers = [];
+let totalJobs = 0;
+let jobsDone = 0;
+let foundCount = 0;
+let uiInterval;
 
-// --- Helper: Terminal Colors ---
+// for colors
 const color = {
     reset: "\x1b[0m",
     green: "\x1b[32m",
@@ -26,14 +24,13 @@ const color = {
     cyan: "\x1b[36m",
 };
 
-// This function is our "view" layer. It clears the console and redraws the entire
-// dashboard based on the current data held in the `workerStates` array.
+// draws the dashboard
 function renderDashboard() {
     console.clear();
     console.log(`${color.cyan}--- Multithreaded Scraper Dashboard ---${color.reset}`);
-    console.log(`Progress: ${completedTargets} / ${totalTargets} targets processed | Total Relevant Found: ${color.green}${totalRelevantFound}${color.reset}\n`);
+    console.log(`Progress: ${jobsDone} / ${totalJobs} targets processed | Total Relevant Found: ${color.green}${foundCount}${color.reset}\n`);
 
-    workerStates.forEach(state => {
+    workers.forEach(state => {
         let statusColor = color.yellow;
         if (state.status === 'finished') statusColor = color.green;
         if (state.status === 'error') statusColor = color.red;
@@ -48,92 +45,88 @@ function renderDashboard() {
     console.log("\n(Press Ctrl+C to stop)");
 }
 
-// --- Main Execution Logic ---
+// --- Main ---
 async function main() {
-    console.log(`--> Initializing Scraper Manager...`);
+    console.log(`--> Starting up...`);
 
     try {
-        const targets = JSON.parse(await fs.readFile(CONFIG_FILE, 'utf8'));
-        const targetsQueue = [...targets];
-        totalTargets = targets.length;
+        const targets = JSON.parse(await fs.readFile(TARGETS_FILE, 'utf8'));
+        const workQueue = [...targets];
+        totalJobs = targets.length;
 
-        // Initialize the data model for the dashboard view.
-        for (let i = 0; i < NUM_WORKERS; i++) {
-            workerStates.push({
+        // setup initial worker states
+        for (let i = 0; i < WORKER_COUNT; i++) {
+            workers.push({
                 id: i + 1, sourceName: 'Idle', status: 'idle', message: 'Waiting for a task...'
             });
         }
         
-        // Start the UI refresh loop.
-        renderInterval = setInterval(renderDashboard, REFRESH_INTERVAL);
+        // start drawing the UI
+        uiInterval = setInterval(renderDashboard, UI_REFRESH);
 
-        // This promise resolves only when all targets in the queue have been processed by the workers.
-        const allWorkDone = new Promise((resolve, reject) => {
+        const allWorkFinished = new Promise((resolve, reject) => {
             
-            // This is the core of our dynamic pool. A worker calls this function when it finishes a task.
-            // It checks if there's more work in the queue and, if so, starts a new task on the same worker thread.
-            // This ensures workers are always busy if there's work to do.
-            const launchWorkerIfNeeded = (workerId) => {
-                if (targetsQueue.length === 0) {
-                    workerStates[workerId - 1].status = 'finished';
-                    workerStates[workerId - 1].message = 'All tasks complete.';
-                    // If all workers have reported that the queue is empty, we're done.
-                    if (workerStates.every(w => w.status === 'finished')) {
+            // gives a worker a new task if there's any left
+            const startTaskOnWorker = (workerId) => {
+                if (workQueue.length === 0) {
+                    workers[workerId - 1].status = 'finished';
+                    workers[workerId - 1].message = 'All tasks complete.';
+                    // check if everyone is done
+                    if (workers.every(w => w.status === 'finished')) {
                         resolve();
                     }
                     return;
                 }
 
-                const target = targetsQueue.shift();
-                workerStates[workerId - 1] = { ...workerStates[workerId - 1], sourceName: target.sourceName, status: 'starting', message: `Initializing scrape for ${target.sourceName}` };
+                const target = workQueue.shift();
+                workers[workerId - 1] = { ...workers[workerId - 1], sourceName: target.sourceName, status: 'starting', message: `Scraping ${target.sourceName}` };
 
                 const worker = new Worker(path.join(__dirname, 'worker.js'), {
                     workerData: { target, workerId }
                 });
                 
-                // Handles status updates from a worker (e.g., "Page 1: Found 33 threads").
+                // listen for progress updates
                 worker.on('message', (update) => {
-                    workerStates[workerId - 1] = { ...workerStates[workerId - 1], ...update };
+                    workers[workerId - 1] = { ...workers[workerId - 1], ...update };
                     if (update.stats && update.stats.newRelevantFound) {
-                        totalRelevantFound += update.stats.newRelevantFound;
+                        foundCount += update.stats.newRelevantFound;
                     }
                 });
 
-                // This is the most important part of the pool. When a worker finishes its current target,
-                // we immediately tell it to try and get another one from the queue.
+                // when a worker is done, give it more work
                 worker.on('exit', (code) => {
-                    completedTargets++;
+                    jobsDone++;
                     if (code !== 0) {
-                        workerStates[workerId - 1].status = 'error';
-                        workerStates[workerId - 1].message = `Exited with error code ${code}`;
+                        workers[workerId - 1].status = 'error';
+                        workers[workerId - 1].message = `Exited with error code ${code}`;
                     } else {
-                        // This worker is now free. Recursively call the launch function to get more work.
-                        launchWorkerIfNeeded(workerId);
+                        // get next job
+                        startTaskOnWorker(workerId);
                     }
                 });
                 
-                // Handles critical, unrecoverable errors from a worker.
+                // handle bad errors
                 worker.on('error', (err) => {
-                    workerStates[workerId - 1].status = 'error';
-                    workerStates[workerId - 1].message = err.message;
+                    workers[workerId - 1].status = 'error';
+                    workers[workerId - 1].message = err.message;
                     reject(err);
                 });
             };
             
-            // Kick off the process by telling all workers in the pool to start looking for tasks.
-            for (let i = 1; i <= NUM_WORKERS; i++) {
-                launchWorkerIfNeeded(i);
+            // start all workers
+            for (let i = 1; i <= WORKER_COUNT; i++) {
+                startTaskOnWorker(i);
             }
         });
 
-        await allWorkDone;
+        await allWorkFinished;
 
     } catch (error) {
-        console.error("\n--- A CRITICAL MANAGER ERROR OCCURRED ---", error.message);
+        console.error("\n--- MAIN PROCESS FAILED ---", error.message);
     } finally {
-        // This cleanup is crucial to prevent the script from hanging on exit.
-        clearInterval(renderInterval);
-        renderDashboard(); // Perform one final render to show the finished state.
+        // cleanup
+        clearInterval(uiInterval);
+        renderDashboard(); // final render
         console.log("\n--> All targets have been processed. Main process finished.");
     }
 }

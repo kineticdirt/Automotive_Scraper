@@ -1,6 +1,5 @@
 -- schema.sql
--- Define all your application tables in this file.
--- The manage_db.sh script will run this automatically.
+-- Scripts for running the Automotive Scraper database schema.
 
 CREATE TABLE IF NOT EXISTS scraped_threads (
     id SERIAL PRIMARY KEY,
