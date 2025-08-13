@@ -1,0 +1,34 @@
+[
+    {
+        "sourceName": "VWVortex_MK4",
+        "startUrl": "https://www.vwvortex.com/forums/golf-iv-jetta-iv.4/",
+        "threadLinkSelector": "div.structItem-title a[data-xf-key*='thread-']",
+        "postContentSelectors": ["div.bbWrapper", "div.post-content"],
+        "nextPageSelector": "a.pageNav-jump--next",
+        "keywords": ["1.8t", "timing belt", "coilpack", "diverter valve", "MAF"]
+    },
+    {
+        "sourceName": "NASIOC_WRX_STI",
+        "startUrl": "https://forums.nasioc.com/forums/forumdisplay.php?f=113",
+        "threadLinkSelector": "a[id^='thread_title_']",
+        "postContentSelectors": ["div[id^='post_message_']", "div.post-content", "blockquote.postcontent"],
+        "nextPageSelector": "a[rel='next']",
+        "keywords": ["ringland", "head gasket", "rod knock", "boost creep", "AVCS"]
+    },
+    {
+        "sourceName": "CorvetteForum_C5_Z06",
+        "startUrl": "https://www.corvetteforum.com/forums/c5-z06-discussion-101/",
+        "threadLinkSelector": "a[id^='thread_title_']",
+        "postContentSelectors": ["div.post-content", "div[id^='post_message_']", "blockquote.postcontent"],
+        "nextPageSelector": "a[rel='next']",
+        "keywords": ["LS6", "torque tube", "valve springs", "EBCM", "column lock"]
+    },
+    {
+        "sourceName": "Miata_net_NA",
+        "startUrl": "https://forum.miata.net/vb/forumdisplay.php?f=38",
+        "threadLinkSelector": "a[id^='thread_title_']",
+        "postContentSelectors": ["blockquote.postcontent", "div[id^='post_message_']", "div.post-content"],
+        "nextPageSelector": "a[rel='next']",
+        "keywords": ["timing belt", "crank wobble", "soft top", "rust", "lifter tick"]
+    }
+]

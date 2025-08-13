@@ -1,0 +1,6 @@
+Error: Protocol error: Connection closed.
+    at Connection._rawSend (/home/abhinav/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Connection.js:97:35)
+    at Connection.send (/home/abhinav/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Connection.js:90:21)
+    at CdpPage.close (/home/abhinav/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Page.js:842:34)
+    at async processTarget (/home/abhinav/Downloads/Automotive_Scraper/worker.js:119:5)
+    at async run (/home/abhinav/Downloads/Automotive_Scraper/worker.js:41:9)
